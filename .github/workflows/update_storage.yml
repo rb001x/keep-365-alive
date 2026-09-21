@@ -1,41 +1,28 @@
 name: Expand OneDrive Storage Quota
 
 on:
-  workflow_dispatch: # Allows manual run with one click
+  workflow_dispatch:
 
 jobs:
   expand-quota:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up PowerShell
-        shell: pwsh
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: pip install requests
+
+      - name: Run Quota Expansion
         env:
-          TENANT_ID: ${{ secrets.MS_TENANT_ID }}
-          CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
-          CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
-          TENANT_PREFIX: ${{ secrets.MS_TENANT_PREFIX }}
-        run: |
-          Write-Host "Installing PnP.PowerShell..."
-          Install-Module -Name PnP.PowerShell -Scope CurrentUser -Force -AllowPrerelease:$false
-
-          $adminUrl = "https://$($env:TENANT_PREFIX)-admin.sharepoint.com"
-          Write-Host "Connecting to: $adminUrl"
-
-          Connect-PnPOnline -Url $adminUrl `
-            -ClientId $env:CLIENT_ID `
-            -ClientSecret $env:CLIENT_SECRET `
-            -Tenant "$($env:TENANT_PREFIX).onmicrosoft.com"
-
-          Write-Host "Connected successfully! Locating personal OneDrive sites..."
-          
-          # Retrieve all OneDrive personal site collections
-          $sites = Get-PnPTenantSite -IncludeOneDriveSites -Filter "Url -like '-my.sharepoint.com/personal/'"
-
-          foreach ($site in$sites) {
-              Write-Host "Setting 5 TB quota on: $($site.Url)"
-              # 5242880 MB = 5120 GB (5 TB)
-              Set-PnPTenantSite -Identity $site.Url -StorageMaximumLevel 5242880 -StorageWarningLevel 5120000
-          }
-
-          Write-Host "Completed storage quota expansion."
+          MS_TENANT_ID: ${{ secrets.MS_TENANT_ID }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
+          MS_TENANT_PREFIX: ${{ secrets.MS_TENANT_PREFIX }}
+        run: python scripts/expand_onedrive.py
